@@ -9,6 +9,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 const BASE_URL = "https://noor-medicals.vercel.app";
+
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
 
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Noor Medicals, Rewa, Madhya Pradesh. Explore quality medicines, pathology lab tests, home sample collection and digital health reports. Your Health Our Priority.",
+    "Noor Medicals, Rewa, Madhya Pradesh. Quality medicines, pathology lab tests, home sample collection and digital health reports. Your Health Our Priority.",
 
   applicationName: "Noor Medicals",
 
@@ -48,9 +49,10 @@ export const metadata: Metadata = {
       "Quality medicines, lab tests, home collection and digital reports in Rewa, Madhya Pradesh.",
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "/noor-og.png",
         width: 1200,
         height: 630,
+        type: "image/png",
         alt: "Noor Medicals - Your Health Our Priority",
       },
     ],
@@ -61,7 +63,7 @@ export const metadata: Metadata = {
     title: "Noor Medicals | Your Health Our Priority",
     description:
       "Quality medicines, lab tests and healthcare services in Rewa, Madhya Pradesh.",
-    images: ["/twitter-image.png"],
+    images: ["/noor-twitter.png"],
   },
 
   robots: {
