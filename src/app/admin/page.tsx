@@ -1,6 +1,7 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image"; // 👈 Ye line add karein
 import AdminDateTime from "@/components/AdminDateTime";
 import AdminDashboardStats from "@/components/AdminDashboardStats";
 import AdminRecentActivity from "@/components/AdminRecentActivity";
@@ -87,8 +88,15 @@ export default function AdminPage() {
 
         {/* CLINIC BRANDING */}
         <div className="flex items-center gap-3 border-b border-slate-100 p-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl font-extrabold text-white">
-            S+
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+            <Image
+              src="/logo.png"
+              alt="Noor Medicals Logo"
+              width={44}
+              height={44}
+              className="h-full w-full object-cover"
+              priority
+            />
           </div>
 
           <div>

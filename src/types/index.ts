@@ -1,4 +1,3 @@
-
 export type AppointmentStatus =
   | "pending"
   | "confirmed"
@@ -16,6 +15,7 @@ export type Patient = {
 
 export type Appointment = {
   id: string;
+  patientId?: string;      // 👈 ADDED (optional for old data)
   patientName: string;
   phone: string;
   date: string;
@@ -33,9 +33,9 @@ export type LabTest = {
   category: string;
 };
 
-
 export type LabBooking = {
   id: string;
+  patientId?: string;      // 👈 ADDED (optional for old data)
   patientName: string;
   phone: string;
   testName: string;
@@ -48,8 +48,42 @@ export type LabBooking = {
 
 export type HealthReport = {
   id: string;
+  patientId?: string;      // 👈 ADDED
   patientName: string;
   reportName: string;
   reportUrl: string;
   date: string;
+};
+
+/* ================================
+   PATIENT LOGIN SESSION
+================================ */
+
+export type PatientSession = {
+  patientId: string;
+  phone: string;
+  loggedInAt: string;
+};
+
+/* ================================
+   NOTIFICATIONS
+================================ */
+
+export type NotificationType =
+  | "appointment"
+  | "lab-booking"
+  | "home-collection"
+  | "report"
+  | "general";
+
+export type AppNotification = {
+  id: string;
+  patientId: string;
+  phone: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  isRead: boolean;
+  createdAt: string;
+  link?: string;
 };

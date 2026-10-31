@@ -1,10 +1,17 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { storage } from "@/lib/storage";
-import type { Appointment } from "@/types";
-import { CalendarDays, CheckCircle2 } from "lucide-react";
+import type {
+  Appointment,
+  Patient,
+  AppNotification,
+} from "@/types";
+import {
+  CalendarDays,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
 
 export default function AppointmentForm() {
   const [form, setForm] = useState({
@@ -18,9 +25,12 @@ export default function AppointmentForm() {
   });
 
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<
+    "success" | "error"
+  >("success");
+
   const [today, setToday] = useState("");
 
-  // Calculate local date after component mounts
   useEffect(() => {
     const currentDate = new Date();
 
@@ -38,34 +48,154 @@ export default function AppointmentForm() {
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
     >
   ) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
     setMessage("");
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function showMessage(
+    text: string,
+    type: "success" | "error"
+  ) {
+    setMessage(text);
+    setMessageType(type);
+  }
+
+  function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>
+  ) {
     e.preventDefault();
 
     if (!today || form.date < today) {
-      setMessage("Please select a valid appointment date.");
+      showMessage(
+        "Please select a valid appointment date.",
+        "error"
+      );
       return;
     }
 
-    const appointment: Appointment = {
-      id: crypto.randomUUID(),
-      patientName: form.patientName.trim(),
-      phone: form.phone.trim(),
-      date: form.date,
-      time: form.time,
-      reason: `Age: ${form.age}, Gender: ${form.gender}. ${form.reason.trim()}`,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
+    const phone = form.phone.replace(/\D/g, "");
+
+    if (!/^[6-9][0-9]{9}$/.test(phone)) {
+      showMessage(
+        "Please enter a valid 10-digit mobile number.",
+        "error"
+      );
+      return;
+    }
 
     try {
-      const existing = storage.getAppointments();
-      storage.saveAppointments([...existing, appointment]);
+      /* =========================
+         GET OR CREATE PATIENT
+      ========================= */
 
-      setMessage("Appointment request saved successfully!");
+      const existingPatients = storage.getPatients();
+
+      let patient = existingPatients.find(
+        (item) => item.phone === phone
+      );
+
+      if (!patient) {
+        patient = {
+          id: crypto.randomUUID(),
+          name: form.patientName.trim(),
+          phone,
+          age: Number(form.age),
+          gender: form.gender as
+            | "Male"
+            | "Female"
+            | "Other",
+          createdAt: new Date().toISOString(),
+        };
+
+        storage.savePatients([
+          ...existingPatients,
+          patient,
+        ]);
+      } else {
+        const updatedPatient: Patient = {
+          ...patient,
+          name: form.patientName.trim(),
+          age: Number(form.age),
+          gender: form.gender as
+            | "Male"
+            | "Female"
+            | "Other",
+        };
+
+        const updatedPatients = existingPatients.map(
+          (item) =>
+            item.id === updatedPatient.id
+              ? updatedPatient
+              : item
+        );
+
+        storage.savePatients(updatedPatients);
+
+        patient = updatedPatient;
+      }
+
+      /* =========================
+         CREATE APPOINTMENT
+      ========================= */
+
+      const appointment: Appointment = {
+        id: crypto.randomUUID(),
+        patientId: patient.id,          // 👈 YEH LINE ADD KAREIN
+        patientName: patient.name,
+        phone: patient.phone,
+        date: form.date,
+        time: form.time,
+        reason: form.reason.trim(),
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      };
+
+      const existingAppointments =
+        storage.getAppointments();
+
+      storage.saveAppointments([
+        ...existingAppointments,
+        appointment,
+      ]);
+
+      /* =========================
+         CREATE NOTIFICATION
+      ========================= */
+
+      const notification: AppNotification = {
+        id: crypto.randomUUID(),
+        patientId: patient.id,
+        phone: patient.phone,
+
+        title: "Appointment Requested",
+
+        message: `Your appointment request for ${form.date} at ${form.time} has been submitted successfully.`,
+
+        type: "appointment",
+
+        isRead: false,
+
+        createdAt: new Date().toISOString(),
+
+        link: "/patient/profile",
+      };
+
+      storage.addNotification(notification);
+
+      /* =========================
+         SUCCESS
+      ========================= */
+
+      showMessage(
+        "Appointment request submitted successfully!",
+        "success"
+      );
 
       setForm({
         patientName: "",
@@ -76,8 +206,13 @@ export default function AppointmentForm() {
         time: "",
         reason: "",
       });
-    } catch {
-      setMessage("Unable to save booking. Please try again.");
+    } catch (error) {
+      console.error("Appointment booking error:", error);
+
+      showMessage(
+        "Unable to save your appointment. Please try again.",
+        "error"
+      );
     }
   }
 
@@ -87,15 +222,22 @@ export default function AppointmentForm() {
         <h2 className="text-xl font-bold text-slate-900">
           Patient Details
         </h2>
+
         <p className="mt-1 text-sm text-slate-500">
           Enter your details to request an appointment.
         </p>
       </div>
 
+      {/* NAME */}
+
       <div>
-        <label htmlFor="patientName" className="mb-2 block text-sm font-semibold">
+        <label
+          htmlFor="patientName"
+          className="mb-2 block text-sm font-semibold"
+        >
           Full Name *
         </label>
+
         <input
           id="patientName"
           name="patientName"
@@ -109,20 +251,27 @@ export default function AppointmentForm() {
         />
       </div>
 
+      {/* PHONE + AGE */}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="phone" className="mb-2 block text-sm font-semibold">
+          <label
+            htmlFor="phone"
+            className="mb-2 block text-sm font-semibold"
+          >
             Mobile Number *
           </label>
+
           <input
             id="phone"
             name="phone"
             type="tel"
+            inputMode="numeric"
             value={form.phone}
             onChange={handleChange}
             placeholder="10-digit mobile number"
             pattern="[6-9][0-9]{9}"
-            title="Enter a valid 10-digit Indian mobile number"
+            maxLength={10}
             required
             autoComplete="tel"
             className="w-full rounded-xl border border-slate-200 bg-white/80 p-3 text-sm outline-none focus:border-blue-500"
@@ -130,9 +279,13 @@ export default function AppointmentForm() {
         </div>
 
         <div>
-          <label htmlFor="age" className="mb-2 block text-sm font-semibold">
+          <label
+            htmlFor="age"
+            className="mb-2 block text-sm font-semibold"
+          >
             Age *
           </label>
+
           <input
             id="age"
             name="age"
@@ -148,10 +301,16 @@ export default function AppointmentForm() {
         </div>
       </div>
 
+      {/* GENDER */}
+
       <div>
-        <label htmlFor="gender" className="mb-2 block text-sm font-semibold">
+        <label
+          htmlFor="gender"
+          className="mb-2 block text-sm font-semibold"
+        >
           Gender *
         </label>
+
         <select
           id="gender"
           name="gender"
@@ -167,6 +326,8 @@ export default function AppointmentForm() {
         </select>
       </div>
 
+      {/* APPOINTMENT */}
+
       <div className="border-t border-slate-200 pt-5">
         <h2 className="text-xl font-bold text-slate-900">
           Appointment Details
@@ -175,9 +336,13 @@ export default function AppointmentForm() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="date" className="mb-2 block text-sm font-semibold">
+          <label
+            htmlFor="date"
+            className="mb-2 block text-sm font-semibold"
+          >
             Preferred Date *
           </label>
+
           <input
             id="date"
             name="date"
@@ -191,9 +356,13 @@ export default function AppointmentForm() {
         </div>
 
         <div>
-          <label htmlFor="time" className="mb-2 block text-sm font-semibold">
+          <label
+            htmlFor="time"
+            className="mb-2 block text-sm font-semibold"
+          >
             Preferred Time *
           </label>
+
           <select
             id="time"
             name="time"
@@ -214,10 +383,16 @@ export default function AppointmentForm() {
         </div>
       </div>
 
+      {/* REASON */}
+
       <div>
-        <label htmlFor="reason" className="mb-2 block text-sm font-semibold">
+        <label
+          htmlFor="reason"
+          className="mb-2 block text-sm font-semibold"
+        >
           Reason for Visit
         </label>
+
         <textarea
           id="reason"
           name="reason"
@@ -230,6 +405,8 @@ export default function AppointmentForm() {
         />
       </div>
 
+      {/* SUBMIT */}
+
       <button
         type="submit"
         disabled={!today}
@@ -239,13 +416,24 @@ export default function AppointmentForm() {
         Request Appointment
       </button>
 
+      {/* MESSAGE */}
+
       {message && (
         <div
           role="status"
           aria-live="polite"
-          className="flex items-center gap-2 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700"
+          className={`flex items-center gap-2 rounded-xl p-4 text-sm font-semibold ${
+            messageType === "success"
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-red-50 text-red-700"
+          }`}
         >
-          <CheckCircle2 size={19} />
+          {messageType === "success" ? (
+            <CheckCircle2 size={19} />
+          ) : (
+            <AlertCircle size={19} />
+          )}
+
           {message}
         </div>
       )}
